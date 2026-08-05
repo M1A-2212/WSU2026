@@ -3,18 +3,22 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_events as events,
     aws_events_targets as targets,
-    RemovalPolicy
+    RemovalPolicy,
+    Duration
 )
+class webHealth(Construct):
+    def __init__(self, scope: Construct):
 
-def lambda_handler(event, context):
-    result = helloFunction()
+        self.func = _lambda.Function(
+            self, "helloFunction",
+            runtime = _lambda.Runtime.PYTHON_3_14,
+            handler = "handler.lambda_handler",
+            code = _lambda.Code.from_asset("lambda"),
+        )
 
-def helloFunction():
-    print ("Hello World")
+        rule = events.Rule(self, "Rule",
+        schedule=events.Schedule.rate(cdk.Duration.minutes(5))
+        )
+        rule.add_target(targets.LambdaFunction(self.func))
 
-rule = events.Rule(self, "Rule",
-    schedule=events_.Schedule.rate(cdk.Duration.minutes(5))
-)
-#rule.add_target(targets.LambdaFunction())
-
-result.apply_removal_policy(RemovalPolicy.DESTROY)
+        result.apply_removal_policy(RemovalPolicy.DESTROY)
