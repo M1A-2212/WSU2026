@@ -4,12 +4,16 @@ from aws_cdk import (
     aws_events as events,
     aws_events_targets as targets,
     RemovalPolicy,
+    Stack,
     Duration
 )
-class webHealth(Construct):
-    def __init__(self, scope: Construct):
+from constructs import Construct
 
-        self.func = _lambda.Function(
+class WebHealthStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None: 
+        super().__init__(scope, construct_id, **kwargs)
+
+        _lambda.Function(
             self, "helloFunction",
             runtime = _lambda.Runtime.PYTHON_3_14,
             handler = "handler.lambda_handler",
@@ -17,7 +21,7 @@ class webHealth(Construct):
         )
 
         rule = events.Rule(self, "Rule",
-        schedule=events.Schedule.rate(cdk.Duration.minutes(5))
+        schedule=events.Schedule.rate(Duration.minutes(5))
         )
         rule.add_target(targets.LambdaFunction(self.func))
 
