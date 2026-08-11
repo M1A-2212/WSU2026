@@ -7,7 +7,7 @@ from mia_gianatti.mia_gianatti_stack import MiaGianattiStack
 from webHealth import WebHealthStack
 
 app = cdk.App()
-MiaGianattiStack(app, "MiaGianattiStack")
+#MiaGianattiStack(app, "MiaGianattiStack")
 WebHealthStack(app, "WebHealthStack")
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
