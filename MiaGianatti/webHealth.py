@@ -13,9 +13,9 @@ class WebHealthStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None: 
         super().__init__(scope, construct_id, **kwargs)
 
-        _lambda.Function(
+        greetingFunction = _lambda.Function(
             self, "helloFunction",
-            runtime = _lambda.Runtime.PYTHON_3_14,
+            runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
         )
@@ -25,4 +25,4 @@ class WebHealthStack(Stack):
         )
         rule.add_target(targets.LambdaFunction(self.func))
 
-        result.apply_removal_policy(RemovalPolicy.DESTROY)
+        greetingFunction.apply_removal_policy(RemovalPolicy.DESTROY)

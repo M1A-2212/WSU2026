@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-
 import aws_cdk as cdk
 
 from mia_gianatti.mia_gianatti_stack import MiaGianattiStack
