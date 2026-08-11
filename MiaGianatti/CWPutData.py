@@ -13,7 +13,7 @@ def putDataFunction (namespace, metricName, url, value):
                     },
                 ],
 
-                'Value': availability
+                'Value': value
             }
         ]
     )

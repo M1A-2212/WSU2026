@@ -1,4 +1,4 @@
-URL = ""
+URL = "URL"
 namespace = "MG_NAMESPACE"
-metricAvailability = ""
-metricLatency = ""
+metricAvailability = "AVAILABILITY"
+metricLatency = "LATNECY"
