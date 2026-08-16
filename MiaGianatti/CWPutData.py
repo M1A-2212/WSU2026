@@ -9,7 +9,7 @@ def putDataFunction (namespace, metricName, url, value):
                 'Dimensions': [
                     {
                         'Name': 'URL'
-                        'Value': URL
+                        #'Value' 'URL'
                     },
                 ],
 

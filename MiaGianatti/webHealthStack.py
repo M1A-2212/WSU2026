@@ -80,6 +80,20 @@ class WebHealthStack(Stack):
                     comparision_operator = config["comparison_operator"]
                 )
 
+        dashboard = cw.Dashboard(self, "Dash",
+        default_interval=Duration.days(7),
+        variables=[cw.DashboardVariable(
+                id="region2",
+                type=cw.VariableType.PATTERN,
+                label="RegionPattern",
+                input_type=cw.VariableInputType.INPUT,
+                value="us-east-1",
+                default_value=cw.DefaultValue.value("us-east-1"),
+                visible=True
+            )
+        ]
+)
+
 
         #Destroying the policy
         greetingFunction.apply_removal_policy(RemovalPolicy.DESTROY)
