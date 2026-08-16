@@ -4,7 +4,7 @@ import aws_cdk as cdk
 
 from mia_gianatti.mia_gianatti_stack import MiaGianattiStack
 
-from webHealth import WebHealthStack
+from webHealthStack import WebHealthStack
 
 app = cdk.App()
 #MiaGianattiStack(app, "MiaGianattiStack")
