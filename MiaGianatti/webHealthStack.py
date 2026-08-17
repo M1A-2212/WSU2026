@@ -25,11 +25,12 @@ class WebHealthStack(Stack):
         )
 
         #Hello World function
-        greetingFunction = _lambda.Function(
+        self.func = _lambda.Function(
             self, "helloFunction",
             runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
+            role = user_role
         )
 
         #Schedule timer
@@ -41,21 +42,24 @@ class WebHealthStack(Stack):
 
         #Metrics and Alarms
 
-        metricNames = [C.metricLatency, C.metricAvailability, C.metricResponseSize]
-        urls = [C.URL]
+        metricNames = [constants.METRIC_LATENCY, constants.METRIC_AVAILABILITY, constants.METRIC_RESPONSE_SIZE]
+        urls = [constants.URL]
 
         alarm_config = {
-            "Availability": {
+            "AVAILABILITY": {
                 "threshold" : 1,
-                "comparison_operator" : cw.ComparisonOperator.LESS_THAN_THRESHOLD
+                "comparison_operator" : cw.ComparisonOperator.LESS_THAN_THRESHOLD,
+                "evaluation_periods" : 1
             },
-            "Latency": {
+            "LATENCY": {
                 "threshold" : 0.15,
-                "comparision_operator" : cw.ComparisonOperator.GREATER_THAN_THRESHOLD
+                "comparison_operator" : cw.ComparisonOperator.GREATER_THAN_THRESHOLD,
+                "evaluation_periods" : 1
             },
-            "Response Size": {
+            "RESPONSE_SIZE": {
                 "threshold": 1,
-                "comparison_operator" : cw.ComparisonOperator.GREATER_THAN_THRESHOLD
+                "comparison_operator" : cw.ComparisonOperator.GREATER_THAN_THRESHOLD,
+                "evaluation_periods" : 1
             }
         }
 
@@ -63,21 +67,22 @@ class WebHealthStack(Stack):
         alarms = {}
 
         for url in urls:
-            for metricName in metricNames:
-                key = f"{url}:{metricName}"
+            for metric_name in metricNames:
+                key = f"{url}:{metric_name}"
                 metrics[key] = cw.Metric(
-                    namespace=C.namespace,
-                    metricName=metricName,
+                    namespace=constants.NAMESPACE,
+                    metric_name=metric_name,
                     dimensions_map={
-                    "URL": C.URL
+                    "URL": url
                     }
                 )
-                config = alarm_config[metricName]
+                config = alarm_config[metric_name]
                 alarms[key] = cw.Alarm(
-                    self, f"{metricName} Alarm {url}",
+                    self, f"{metric_name} Alarm {url}",
                     metric = metrics[key],
                     threshold = config["threshold"],
-                    comparision_operator = config["comparison_operator"]
+                    comparison_operator = config["comparison_operator"],
+                    evaluation_periods = config["evaluation_periods"]
                 )
 
         dashboard = cw.Dashboard(self, "Dash",
@@ -96,4 +101,4 @@ class WebHealthStack(Stack):
 
 
         #Destroying the policy
-        greetingFunction.apply_removal_policy(RemovalPolicy.DESTROY)
+        self.func.apply_removal_policy(RemovalPolicy.DESTROY)

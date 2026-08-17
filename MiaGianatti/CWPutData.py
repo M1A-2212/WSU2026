@@ -1,4 +1,7 @@
 import boto3
+import constants
+
+client = boto3.client('cloudwatch')
 
 def putDataFunction (namespace, metricName, url, value):
     return client.put_metric_data(
@@ -8,8 +11,8 @@ def putDataFunction (namespace, metricName, url, value):
                 'MetricName': metricName,
                 'Dimensions': [
                     {
-                        'Name': 'URL'
-                        #'Value' 'URL'
+                        'Name': 'URL',
+                        'Value': url
                     },
                 ],
 
