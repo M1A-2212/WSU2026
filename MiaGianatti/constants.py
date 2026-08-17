@@ -1,4 +1,4 @@
-URL = "URL"
+URL = "https://library.westernsydney.edu.au/"
 NAMESPACE = "NAMESPACE"
 METRIC_AVAILABILITY = "AVAILABILITY"
 METRIC_LATENCY = "LATENCY"

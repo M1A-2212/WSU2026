@@ -24,7 +24,7 @@ class WebHealthStack(Stack):
             ]
         )
 
-        #Hello World function
+        #Lambda function
         self.func = _lambda.Function(
             self, "helloFunction",
             runtime = _lambda.Runtime.PYTHON_3_12,
@@ -57,8 +57,8 @@ class WebHealthStack(Stack):
                 "evaluation_periods" : 1
             },
             "RESPONSE_SIZE": {
-                "threshold": 1,
-                "comparison_operator" : cw.ComparisonOperator.GREATER_THAN_THRESHOLD,
+                "threshold": 5000,
+                "comparison_operator" : cw.ComparisonOperator.LESS_THAN_THRESHOLD,
                 "evaluation_periods" : 1
             }
         }
