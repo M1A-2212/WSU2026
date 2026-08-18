@@ -73,4 +73,6 @@ to view the dashboard that records the metrics and alarms.
 Use `cdk destroy` to remove the stack and stop all processes. There is a hard-coded command
 but this ensures that all resources are destroyed regardless.
 
+This is a test!
+
 Enjoy!
