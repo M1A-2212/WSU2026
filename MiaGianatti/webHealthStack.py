@@ -3,11 +3,17 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_events as events,
     aws_iam as iam,
+    aws_sns as sns,
+    aws_sns_subscriptions as subscriptions,
     aws_cloudwatch as cw,
+    aws_cloudwatch_actions as cw_actions,
     aws_events_targets as targets,
+    aws_dynamodb as DynamoDB,
     RemovalPolicy,
     Stack,
     Duration
+    
+    
 )
 from constructs import Construct
 import constants
@@ -26,7 +32,7 @@ class WebHealthStack(Stack):
 
         #Lambda function
         self.func = _lambda.Function(
-            self, "helloFunction",
+            self, "webHealthFunction",
             runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
@@ -84,6 +90,26 @@ class WebHealthStack(Stack):
                     comparison_operator = config["comparison_operator"],
                     evaluation_periods = config["evaluation_periods"]
                 )
+        
+        
+        #Creating notifications for the alarms
+
+        topic = sns.Topic(self, "Alarm Notifications")
+        topic.add_subscription(subscriptions.EmailSubscription("22127341@student.westernsydney.edu.au"))
+        topic.add_subscription(subscriptions.LambdaSubscription(self.func))
+
+        for alarm in alarms.values():
+            alarm.add_alarm_action(cw_actions.SnsAction(topic))
+
+
+
+        #Destroying the policy
+        self.func.apply_removal_policy(RemovalPolicy.DESTROY)
+
+        #Destroying the alarms
+        alarms[key].apply_removal_policy(RemovalPolicy.DESTROY)
+
+
 
         dashboard = cw.Dashboard(self, "Dash",
         default_interval=Duration.days(7),
@@ -97,8 +123,5 @@ class WebHealthStack(Stack):
                 visible=True
             )
         ]
+
 )
-
-
-        #Destroying the policy
-        self.func.apply_removal_policy(RemovalPolicy.DESTROY)
