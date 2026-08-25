@@ -10,6 +10,8 @@ This is an AWS CDK stack run in Python that will perform health checks of "https
     * Latency
     * Availability
     * Response size
+* Notifications for the alarms for a subscription list
+* A DynamoDB that logs the alarms that have been triggered
 * CloudWatch Dashboard with a 7-day interval
 * The function has a hard-coded `DESTROY` command written in to delete the stack when it is
   destroyed, not retained
@@ -67,6 +69,8 @@ command.
 # Monitoring
 Once the stack is deployed, login to your AWS management console and use the CloudWatch service
 to view the dashboard that records the metrics and alarms.
+The alarms that are triggered will send out email notfications, and the alarms will also
+be logged in the DynamoDB service for records.
 
 
 # Clean-Up
