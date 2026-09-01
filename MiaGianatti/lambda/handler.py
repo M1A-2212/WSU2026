@@ -2,10 +2,23 @@ import json
 import boto3
 import CWPutData
 import constants
-import urllib
+import urllib.request
+import os
+from datetime import datetime, timezone
+
+DynamoDB = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environment["TABLE_NAME"])
 
 def lambda_handler(event, context):
+    if something in event:
+        for record in event["Records"]:
+            if record.get("EventSource") == "aws.sns":
+                log_alarm(record["Sns"])
+        return {"statusCode": 200}
 
+    return run_health_check()
+
+def healthCheck():
     url = constants.URL
 
     # Monitoring the website
@@ -23,6 +36,7 @@ def lambda_handler(event, context):
     CWPutData.putDataFunction(constants.NAMESPACE, constants.METRIC_AVAILABILITY, url, availability)
     CWPutData.putDataFunction(constants.NAMESPACE, constants.METRIC_LATENCY, url, elapsed)
     CWPutData.putDataFunction(constants.NAMESPACE, constants.METRIC_RESPONSE_SIZE, url, response_size)
+
 
     return{
         "statusCode": 200,

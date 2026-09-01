@@ -95,7 +95,7 @@ class WebHealthStack(Stack):
         #Creating notifications for the alarms
 
         topic = sns.Topic(self, "Alarm Notifications")
-        topic.add_subscription(subscriptions.EmailSubscription("email@email.com"))
+        topic.add_subscription(subscriptions.EmailSubscription("22127341@student.westernsydney.edu.au"))
         topic.add_subscription(subscriptions.LambdaSubscription(self.func))
 
         for alarm in alarms.values():
