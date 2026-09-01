@@ -108,6 +108,10 @@ class WebHealthStack(Stack):
             removal_policy= RemovalPolicy.DESTROY
         )
 
+        #Granting read access for the user
+        table.grant_read_data(user_role)
+
+        # Granting write access for the function
         table.grant_write_data(self.func)
         self.func.add_environment("TABLE_NAME", table.table_name)
 

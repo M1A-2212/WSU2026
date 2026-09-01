@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 
 DynamoDB = boto3.resource("dynamodb")
-table = dynamodb.Table(os.environment["TABLE_NAME"])
+table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 def lambda_handler(event, context):
     if something in event:
@@ -17,6 +17,15 @@ def lambda_handler(event, context):
         return {"statusCode": 200}
 
     return run_health_check()
+
+def log_alarm(sns_record):
+    message = json.loads(sns_record["Warning"])
+
+    item = {
+
+    }
+
+    table.put_item(Item = item)
 
 def healthCheck():
     url = constants.URL
