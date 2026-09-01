@@ -95,23 +95,30 @@ class WebHealthStack(Stack):
         #Creating notifications for the alarms
 
         topic = sns.Topic(self, "Alarm Notifications")
-        topic.add_subscription(subscriptions.EmailSubscription("22127341@student.westernsydney.edu.au"))
+        topic.add_subscription(subscriptions.EmailSubscription("email@email.com"))
         topic.add_subscription(subscriptions.LambdaSubscription(self.func))
 
         for alarm in alarms.values():
             alarm.add_alarm_action(cw_actions.SnsAction(topic))
 
+        #Logging alarm in DynamoDB
+        table = DynamoDB.TableV2(self, "Alarm Notifications Table",
+            partition_key=DynamoDB.Attribute(name="pk", type=DynamoDB.AttributeType.STRING),
+            sort_key = DynamoDB.Attribute(name="timestamp", type=DynamoDB.AttributeType.STRING),
+            removal_policy= RemovalPolicy.DESTROY
+        )
 
+        table.grant_write_data(self.func)
+        self.func.add_environment("TABLE_NAME", table.table_name)
 
         #Destroying the policy
         self.func.apply_removal_policy(RemovalPolicy.DESTROY)
 
         #Destroying the alarms
-        alarms[key].apply_removal_policy(RemovalPolicy.DESTROY)
+        for alarm in alarm.values():
+            alarms.apply_removal_policy(RemovalPolicy.DESTROY)
 
-
-
-        dashboard = cw.Dashboard(self, "Dash",
+        dashboard = cw.Dashboard(self, "Web Health Dashboard",
         default_interval=Duration.days(7),
         variables=[cw.DashboardVariable(
                 id="region2",
