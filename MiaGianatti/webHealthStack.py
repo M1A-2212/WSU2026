@@ -119,9 +119,10 @@ class WebHealthStack(Stack):
         self.func.apply_removal_policy(RemovalPolicy.DESTROY)
 
         #Destroying the alarms
-        for alarm in alarm.values():
-            alarms.apply_removal_policy(RemovalPolicy.DESTROY)
+        for alarm in alarms.values():
+            alarm.apply_removal_policy(RemovalPolicy.DESTROY)
 
+        # Creating the dashboard on AWS CloudWatch
         dashboard = cw.Dashboard(self, "Web Health Dashboard",
         default_interval=Duration.days(7),
         variables=[cw.DashboardVariable(

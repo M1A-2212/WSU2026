@@ -1,6 +1,6 @@
 
 # WebHealthStack
-This is an AWS CDK stack run in Python that will perform health checks of "https://library.westernsydney.edu.au/". This uses a Lambda function to publish the CloudWatch metrics and alarms on a dashboard.
+This is an AWS CDK stack run in Python that will perform health checks of "https://library.westernsydney.edu.au/". This uses a Lambda function to publish the CloudWatch metrics and alarms on a dashboard. If the metrics trigger an alarm, a registered user will receive an email regarding what metric was triggered and why. These alarms will also be logged in a database.
 
 ## What is Deployed?
 * An IAM User role with full CloudWatch access
@@ -11,12 +11,21 @@ This is an AWS CDK stack run in Python that will perform health checks of "https
     * Availability
     * Response size
 * Notifications for the alarms for a subscription list
-* A DynamoDB that logs the alarms that have been triggered
+* A DynamoDB NoSQL database that logs the alarms that have been triggered
 * CloudWatch Dashboard with a 7-day interval
 * The function has a hard-coded `DESTROY` command written in to delete the stack when it is
   destroyed, not retained
 
+# Technologies Used
 
+- AWS CDK
+- AWS Lambda
+- Amazon CloudWatch
+- Amazon DynamoDB
+- Amazon API Gateway
+- Amazon SNS
+- GitHub
+- Python
 
 # Setup
 

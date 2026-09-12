@@ -10,7 +10,7 @@ DynamoDB = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 def lambda_handler(event, context):
-    if something in event:
+    if "Records" in event:
         for record in event["Records"]:
             if record.get("EventSource") == "aws.sns":
                 log_alarm(record["Sns"])
@@ -22,10 +22,17 @@ def log_alarm(sns_record):
     message = json.loads(sns_record["Warning"])
 
     item = {
-
+        "alarm_name": message["AlarmName"],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "new_state": message["NewStateValue"],
+        "old_state": message["OldStateValue"],
+        "reason": message.get("NewStateReason", ""),
+        "region": message.get("Region", ""),
+        "account_id": message.get("AWSAccountId", ""),
     }
 
     table.put_item(Item = item)
+    print(f"Logged alarm: {item['alarm_name']} -> {item['new_state']}")
 
 def healthCheck():
     url = constants.URL
