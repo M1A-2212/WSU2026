@@ -17,9 +17,9 @@ This is an AWS CDK stack run in Python that will perform health checks of "https
   destroyed, not retained
 
 # Technologies Used
-
 - AWS CDK
 - AWS Lambda
+- AWS S3
 - Amazon CloudWatch
 - Amazon DynamoDB
 - Amazon API Gateway
@@ -28,7 +28,6 @@ This is an AWS CDK stack run in Python that will perform health checks of "https
 - Python
 
 # Setup
-
 This project is set up like a standard Python project.  The initialization
 process also creates a virtualenv within this project, stored under the `.venv`
 directory.  To create the virtualenv it assumes that there is a `python3`
@@ -67,7 +66,7 @@ command.
  * `cdk ls`          list all stacks in the app
  * `cdk bootstrap`   deploys a CDK toolkit 
  * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
+ * `cdk deploy`      deploy this stack to your default AWS account region
  * `cdk diff`        compare deployed stack with current state
  * `cdk docs`        open CDK documentation
 

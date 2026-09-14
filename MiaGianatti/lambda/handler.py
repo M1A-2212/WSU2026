@@ -18,6 +18,7 @@ def lambda_handler(event, context):
 
     return run_health_check()
 
+# Logging alarms in the database
 def log_alarm(sns_record):
     message = json.loads(sns_record["Warning"])
 

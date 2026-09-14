@@ -113,7 +113,7 @@ class WebHealthStack(Stack):
 
         # Granting write access for the function
         table.grant_write_data(self.func)
-        self.func.add_environment("TABLE_NAME", table.table_name)
+        self.func.add_environment("Alarm Notifications Table", table.table_name)
 
         #Destroying the policy
         self.func.apply_removal_policy(RemovalPolicy.DESTROY)
