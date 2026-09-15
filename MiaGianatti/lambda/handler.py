@@ -6,8 +6,9 @@ import urllib.request
 import os
 from datetime import datetime, timezone
 
-DynamoDB = boto3.resource("dynamodb")
-table = dynamodb.Table(os.environ["TABLE_NAME"])
+CloudWatch = boto3.resource("cloudwatch")
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["ALARM_NOTIFICATION_TABLE"])
 
 def lambda_handler(event, context):
     if "Records" in event:
@@ -16,14 +17,14 @@ def lambda_handler(event, context):
                 log_alarm(record["Sns"])
         return {"statusCode": 200}
 
-    return run_health_check()
+    return health_check()
 
 # Logging alarms in the database
 def log_alarm(sns_record):
-    message = json.loads(sns_record["Warning"])
+    message = json.loads(sns_record["Message"])
 
     item = {
-        "alarm_name": message["AlarmName"],
+        "pk": message["AlarmName"],
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "new_state": message["NewStateValue"],
         "old_state": message["OldStateValue"],
@@ -43,7 +44,7 @@ def healthCheck():
     try:
         response = urllib.request.urlopen(url, timeout = 5)
         elapsed = time.time() - start
-        availability = 1 if statusCode == 200 else 0
+        availability = 1 if response.statusCode == 200 else 0
         response_size = len(response.read())
     except Exception :
         elapsed = time.time() - start

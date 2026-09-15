@@ -11,9 +11,7 @@ from aws_cdk import (
     aws_dynamodb as DynamoDB,
     RemovalPolicy,
     Stack,
-    Duration
-    
-    
+    Duration  
 )
 from constructs import Construct
 import constants
@@ -30,9 +28,18 @@ class WebHealthStack(Stack):
             ]
         )
 
-        #Lambda function
+        #Lambda function for CloudWatch
         self.func = _lambda.Function(
             self, "webHealthFunction",
+            runtime = _lambda.Runtime.PYTHON_3_12,
+            handler = "handler.lambda_handler",
+            code = _lambda.Code.from_asset("lambda"),
+            role = user_role
+        )
+
+        #Lambda Function for DynamoDB
+        self.db_func = _lambda.Function(
+            self, "writeToDynamo",
             runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
@@ -96,13 +103,13 @@ class WebHealthStack(Stack):
 
         topic = sns.Topic(self, "Alarm Notifications")
         topic.add_subscription(subscriptions.EmailSubscription("22127341@student.westernsydney.edu.au"))
-        topic.add_subscription(subscriptions.LambdaSubscription(self.func))
+        topic.add_subscription(subscriptions.LambdaSubscription(self.db_func))
 
         for alarm in alarms.values():
             alarm.add_alarm_action(cw_actions.SnsAction(topic))
 
         #Logging alarm in DynamoDB
-        table = DynamoDB.TableV2(self, "Alarm Notifications Table",
+        table = DynamoDB.TableV2(self, "ALARM_NOTIFICATIONS_TABLE",
             partition_key=DynamoDB.Attribute(name="pk", type=DynamoDB.AttributeType.STRING),
             sort_key = DynamoDB.Attribute(name="timestamp", type=DynamoDB.AttributeType.STRING),
             removal_policy= RemovalPolicy.DESTROY
@@ -113,10 +120,13 @@ class WebHealthStack(Stack):
 
         # Granting write access for the function
         table.grant_write_data(self.func)
-        self.func.add_environment("Alarm Notifications Table", table.table_name)
+        self.db_func.add_environment("ALARM_NOTIFICATIONS_TABLE", table.table_name)
 
         #Destroying the policy
         self.func.apply_removal_policy(RemovalPolicy.DESTROY)
+
+        #Destroying DynamoDB function
+        self.db_func.apply_removal_policy(RemovalPolicy.DESTROY)
 
         #Destroying the alarms
         for alarm in alarms.values():
