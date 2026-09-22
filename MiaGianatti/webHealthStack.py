@@ -11,7 +11,7 @@ from aws_cdk import (
     aws_dynamodb as DynamoDB,
     RemovalPolicy,
     Stack,
-    Duration  
+    Duration
 )
 from constructs import Construct
 import constants
