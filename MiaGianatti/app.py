@@ -2,15 +2,15 @@
 import os
 import aws_cdk as cdk
 
-from mia_gianatti.mia_gianatti_stack import MiaGianattiStack
+#from mia_gianatti.mia_gianatti_stack import MiaGianattiStack
 
 from webHealthStack import WebHealthStack
 
-from pipeLine import PipeLineStack
+from pipeLineStack import PipeLineStack
 
 app = cdk.App()
 #MiaGianattiStack(app, "MiaGianattiStack")
-WebHealthStack(app, "WebHealthStack")
+#WebHealthStack(app, "WebHealthStack")
 PipeLineStack(app, "PipeLineStack")
 
     # If you don't specify 'env', this stack will be environment-agnostic.
