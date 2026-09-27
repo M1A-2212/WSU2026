@@ -1,6 +1,9 @@
+import responses
 import aws_cdk as core
 import aws_cdk.assertions as assertions
 
+import sys
+import os
 from webHealthStack import WebHealthStack
 
 # example tests. To run these tests, uncomment this file along with the example
@@ -79,8 +82,27 @@ def test_dashboard_created():
     template = assertions.Template.from_stack(stack)
     template.resource_count_is("AWS::CloudWatch::Dashboard", 1)    
 
-# Function Tests
 
+
+# Function Tests
+@responses.activate
+def tests_successful_health_metric_publish():
+    test_url = "https://www.google.com"
+    responses.add(responses.GET, test_url, body="OK", status=200)
+
+    monkeypatch.setattr("handler.URL", test_url, raising=False)
+
+    event = {}
+    context = {}
+
+    handler.lambda_handler(event, context)
+
+    result = cloudwatch_client.list_metrics(Namespace="WebHealthStack")
+    metric_names = {m["MetricName"] for m in result["Metrics"]}
+
+    assert "AVAILABILITY" in metric_names
+    assert "LATENCY" in metric_names
+    assert "RESPONSE_SIZE" in metric_names
 
 
 
