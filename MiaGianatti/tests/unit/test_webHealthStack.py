@@ -1,15 +1,46 @@
+import os
 import responses
 import aws_cdk as core
 import aws_cdk.assertions as assertions
+import boto3
+import pytest
+from moto import mock_aws
 
 import sys
-import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../lambda"))
+
+os.environ.setdefault("ALARM_NOTIFICATIONS_TABLE", "test-table")
+
 from webHealthStack import WebHealthStack
+import constants
+import handler
+
+from unittest.mock import patch, MagicMock
 
 # example tests. To run these tests, uncomment this file along with the example
 #     template.has_resource_properties("AWS::SQS::Queue", {
 #         "VisibilityTimeout": 300
 #    })
+
+@pytest.fixture
+def template():
+    app = core.App()
+    stack = WebHealthStack(app, "WebHealthStack")
+    return assertions.Template.from_stack(stack)
+
+
+@pytest.fixture
+def aws_credentials():
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECURITY_TOKEN"] = "testing"
+    os.environ["AWS_SESSION_TOKEN"] = "testing"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
+@pytest.fixture
+def cloudwatch_client(aws_credentials):
+    with mock_aws():
+        yield boto3.client("cloudwatch", region_name="us-east-1")
 
 # Unit Tests
 def test_lambda_created():
@@ -83,27 +114,27 @@ def test_dashboard_created():
     template.resource_count_is("AWS::CloudWatch::Dashboard", 1)    
 
 
-
 # Function Tests
 @responses.activate
-def tests_successful_health_metric_publish():
+def test_health_check_publishes_metrics(monkeypatch, cloudwatch_client):
     test_url = "https://www.google.com"
-    responses.add(responses.GET, test_url, body="OK", status=200)
+    monkeypatch.setattr("handler.constants.URL", test_url)
 
-    monkeypatch.setattr("handler.URL", test_url, raising=False)
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.read.return_value = b"OK"
 
-    event = {}
-    context = {}
+    with patch("handler.urllib.request.urlopen", return_value=mock_response):
+        result = handler.lambda_handler({}, {})
 
-    handler.lambda_handler(event, context)
+    assert result["statusCode"] == 200
 
-    result = cloudwatch_client.list_metrics(Namespace="WebHealthStack")
-    metric_names = {m["MetricName"] for m in result["Metrics"]}
+    metrics = cloudwatch_client.list_metrics(Namespace=constants.NAMESPACE)
+    metric_names = {m["MetricName"] for m in metrics["Metrics"]}
 
-    assert "AVAILABILITY" in metric_names
-    assert "LATENCY" in metric_names
-    assert "RESPONSE_SIZE" in metric_names
-
+    assert constants.METRIC_AVAILABILITY in metric_names
+    assert constants.METRIC_LATENCY in metric_names
+    assert constants.METRIC_RESPONSE_SIZE in metric_names
 
 
 # Integration Tests

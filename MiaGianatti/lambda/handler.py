@@ -5,10 +5,11 @@ import constants
 import urllib.request
 import os
 from datetime import datetime, timezone
+import time
 
 CloudWatch = boto3.resource("cloudwatch")
 dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table(os.environ["ALARM_NOTIFICATION_TABLE"])
+table = dynamodb.Table(os.environ["ALARM_NOTIFICATIONS_TABLE"])
 
 def lambda_handler(event, context):
     if "Records" in event:
@@ -34,9 +35,9 @@ def log_alarm(sns_record):
     }
 
     table.put_item(Item = item)
-    print(f"Logged alarm: {item['alarm_name']} -> {item['new_state']}")
+    print(f"Logged alarm: {item['pk']} -> {item['new_state']}")
 
-def healthCheck():
+def health_check():
     url = constants.URL
 
     # Monitoring the website
@@ -44,7 +45,7 @@ def healthCheck():
     try:
         response = urllib.request.urlopen(url, timeout = 5)
         elapsed = time.time() - start
-        availability = 1 if response.statusCode == 200 else 0
+        availability = 1 if response.status == 200 else 0
         response_size = len(response.read())
     except Exception :
         elapsed = time.time() - start

@@ -16,6 +16,10 @@ from aws_cdk import (
 from constructs import Construct
 import constants
 
+CRAWLER_TIMEOUT_SECONDS = 30
+CRAWLER_MEMORY_MB = 256
+OPS_NAMESPACE = "WebCrawler/Ops"
+
 class WebHealthStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None: 
         super().__init__(scope, construct_id, **kwargs)
@@ -34,7 +38,11 @@ class WebHealthStack(Stack):
             runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
-            role = user_role
+            role = user_role,
+            timeout = Duration.seconds(CRAWLER_TIMEOUT_SECONDS),
+            current_version_options=_lambda.VersionOptions(
+                removal_policy=RemovalPolicy.RETAIN,
+            )
         )
 
         #Lambda Function for DynamoDB
@@ -44,6 +52,13 @@ class WebHealthStack(Stack):
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda"),
             role = user_role
+        )
+
+        #
+        alias = _lambda.Alias(
+            self, "LiveAlias",
+            alias_name="live",
+            version=self.func.current_version,
         )
 
         #Schedule timer
