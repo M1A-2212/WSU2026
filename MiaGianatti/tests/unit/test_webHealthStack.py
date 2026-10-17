@@ -1,26 +1,12 @@
-import os
-os.environ.setdefault("ALARM_NOTIFICATIONS_TABLE", "test-table")
-
+import aws_cdk as cdk
+import pytest
 import responses
 import aws_cdk as core
 import aws_cdk.assertions as assertions
-from aws_cdk.assertions import Match, Template
-import boto3
-import pytest
-from moto import mock_aws
 import json
 
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../lambda"))
-
+from aws_cdk.assertions import Match, Template 
 from webHealthStack import WebHealthStack
-import constants
-import handler
-
-# example tests. To run these tests, uncomment this file along with the example
-#     template.has_resource_properties("AWS::SQS::Queue", {
-#         "VisibilityTimeout": 300
-#    })
 
 @pytest.fixture
 def template():
@@ -28,8 +14,12 @@ def template():
     stack = WebHealthStack(app, "WebHealthStack")
     return assertions.Template.from_stack(stack)
 
+@pytest.fixture
+def aws_credentials(monkeypatch):
+    for k in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+          monkeypatch.setenv(k, "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-TABLE_NAME = "ALARM_NOTIFICATIONS_TABLE"
 @pytest.fixture
 def ALARM_NOTIFICATIONS_TABLE(aws_credentials, monkeypatch):
     monkeypatch.setenv("ALARM_NOTFICATIONS_TABLE", TABLE_NAME)
@@ -67,7 +57,7 @@ def test_lambda_created():
     app = core.App()
     stack = WebHealthStack(app, "WebHealthStack")
     template = assertions.Template.from_stack(stack)
-    template.resource_count_is("AWS::Lambda::Function", 2)
+    template.resource_count_is("AWS::Lambda::Function", 3)
 
 def test_lambda_runtime():
     app = core.App()
@@ -104,14 +94,14 @@ def test_dynamodb_table_count():
     app = core.App()
     stack = WebHealthStack(app, "WebHealthStack")
     template = assertions.Template.from_stack(stack)
-    template.resource_count_is("AWS::DynamoDB::GlobalTable", 1)
+    template.resource_count_is("AWS::DynamoDB::GlobalTable", 2)
     
 
 def test_alarm_count():
     app = core.App()
     stack = WebHealthStack(app, "WebHealthStack")
     template = assertions.Template.from_stack(stack)
-    template.resource_count_is("AWS::CloudWatch::Alarm", 3)
+    template.resource_count_is("AWS::CloudWatch::Alarm", 9)
 
 def test_sns_subscription_count():
     app = core.App()
@@ -168,26 +158,12 @@ def test_role_can_read_and_write_alarm_table(template):
         },
     )
 
-# @responses.activate
-# def test_health_check_runs_every_five_minutes(template):
-#     template.has_resource_properties(
-#         "AWS::Events::Rule",
-#         {
-#             "ScheduleExpression": "rate(5 minutes)",
-#             "Targets": Match.array_with([Match.object_like({"Arn": Match.any_value()})]),
-#         },
-#     )
-
-# def test_writes_alarm_record_to_database(ALARM_NOTIFICATIONS_TABLE):
-#     event = make_sns_event()
-#     handler.lambda_handler(event, {})
-
-#     dynamo = boto3.client("dynamodb", region_name="us-east-1")
-#     scan = dynamo.scan(TableName = ALARM_NOTIFICATIONS_TABLE)
-
-#     assert scan["Count"] == 1
-#     item = scan["Items"][0]
-#     assert "pk" in item
-#     assert "timestamp" in item
-
-# Integration Tests
+@responses.activate
+def test_health_check_runs_every_five_minutes(template):
+    template.has_resource_properties(
+        "AWS::Events::Rule",
+        {
+            "ScheduleExpression": "rate(5 minutes)",
+            "Targets": Match.array_with([Match.object_like({"Arn": Match.any_value()})]),
+        },
+    )

@@ -15,7 +15,7 @@ class PipeLineStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         source = _pipelines.CodePipelineSource.git_hub (
-            repo_string = "WSU2026/MiaGianatti",
+            repo_string = "M1A-2212/WSU2026",
             branch = "main",
             authentication = SecretValue.secrets_manager("gitHubSecret"),
             trigger = aws_codepipeline_actions.GitHubTrigger ("POLL")
@@ -38,16 +38,25 @@ class PipeLineStack(Stack):
             synth = synth
         )
 
+        SETUP = [
+            "cd MiaGianatti",
+            "pip install -r requirements.txt",
+            "pip install pytest",
+        ]
+
+        def test_step(step_id, pytest_args):
+            return _pipelines.ShellStep(
+                step_id,
+                input=source,
+                commands=[*SETUP, f"python -m pytest {pytest_args} -v"],
+            )
+
         #Unit Tests
         alphaStage = thePipeLineStage(self, "AlphaTests")
         pipeline.add_stage(alphaStage,
-            post=[_pipelines.ShellStep("unitTests",
-                commands=[
-                    "npm install -g aws-cdk",
-                    "cd MiaGianatti", 
-                    "pip install -r requirements.txt",
-                    "cdk synth"
-                ]
+            post=[test_step(
+                "unitTests", 
+                "tests/unit/test_web_health_stack.py"
             )]
         )
 
@@ -55,13 +64,9 @@ class PipeLineStack(Stack):
         betaStage = thePipeLineStage(self, "BetaTests")
         pipeline.add_stage(
             stage = betaStage,
-            post = [_pipelines.ShellStep("functionTests",
-                commands=[
-                    "npm install -g aws-cdk",
-                    "cd MiaGianatti", 
-                    "pip install -r requirements.txt",
-                    "cdk synth"
-                ]
+            post=[test_step(
+                "functionTests",
+                "tests/unit/test_crawler_handler.py tests/test_crud_handler.py"
             )]
         )
 
@@ -69,13 +74,9 @@ class PipeLineStack(Stack):
         gammaStage = thePipeLineStage(self, "GammaTests")
         pipeline.add_stage(
             stage = gammaStage,
-            post = [_pipelines.ShellStep("integrationTests",
-                commands=[
-                    "npm install -g aws-cdk",
-                    "cd MiaGianatti", 
-                    "pip install -r requirements.txt",
-                    "cdk synth"
-                ]
+            post=[test_step(
+                "functionTests",
+                "tests/unit/test_deployment.py"
             )]
         )
 

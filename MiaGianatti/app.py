@@ -9,7 +9,7 @@ from webHealthStack import WebHealthStack
 from pipeLineStack import PipeLineStack
 
 app = cdk.App()
-#MiaGianattiStack(app, "MiaGianattiStack")
+
 #WebHealthStack(app, "WebHealthStack")
 PipeLineStack(app, "PipeLineStack")
 

@@ -1,134 +1,69 @@
-import importlib
-import os
-import json
-import pathlib
-import sys
-import types
-import pytest
-import boto3
-import responses
-from unittest.mock import patch, MagicMock
-from moto import mock_aws
-
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "lambda"))
-sys.path.insert(0, str(ROOT))
-
-HANDLER_PATH = ROOT / "lambda" / "handler.py"
-TABLE_NAME = "test-table"
-TEST_URL = "https://www.google.com"
-
-class FakeTable:
-    def __init__(self):
-        self.items = []
- 
-    def put_item(self, Item):
-        self.items.append(Item)
+# import json
+# import boto3
+# import pytest
  
  
-class FakeDynamoDB:
-    def __init__(self):
-        self.tables = {}
+# def sns_event(alarm="LATENCY Alarm", new="ALARM", old="OK", **extra):
+#     message = {
+#         "AlarmName": alarm,
+#         "NewStateValue": new,
+#         "OldStateValue": old,
+#         **extra,
+#     }
+#     return {
+#         "Records": [{"EventSource": "aws:sns", "Sns": {"Message": json.dumps(message)}}]
+#     }
  
-    def Table(self, name):
-        return self.tables.setdefault(name, FakeTable())
-
-TABLE_NAME = "ALARM_NOTIFICATIONS_TABLE"
-@pytest.fixture
-def ALARM_NOTIFICATIONS_TABLE(aws_credentials, monkeypatch):
-    monkeypatch.setenv("ALARM_NOTFICATIONS_TABLE", TABLE_NAME)
-    with mock_aws():
-        dynamo = boto3.client("dynamodb", region_name="us-east-1")
-        dynamo.create_table(
-            TableName=TABLE_NAME,
-            KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        yield TABLE_NAME
-
-
-def sns_event(alarm="web-alarm", new="ALARM", old="OK", event_source="aws:sns", **extra):
-    message = {"AlarmName": alarm, "NewStateValue": new, "OldStateValue": old, **extra}
-    return {"Records": [{"EventSource": event_source, "Sns": {"Message": json.dumps(message)}}]}
-
-@pytest.fixture
-def handler(monkeypatch):
-    monkeypatch.setenv("ALARM_NOTIFICATIONS_TABLE", TABLE_NAME)
  
-    constants = types.ModuleType("constants")
-    constants.URL = TEST_URL
-    constants.NAMESPACE = "TestNamespace"
-    constants.METRIC_AVAILABILITY = "AVAILABILITY"
-    constants.METRIC_LATENCY = "LATENCY"
-    constants.METRIC_RESPONSE_SIZE = "RESPONSE_SIZE"
+# class FakeResponse:
+#     def __init__(self, status=200, body=b"x" * 6000):
+#         self.status = status
+#         self._body = body
  
-    cw = types.ModuleType("CWPutData")
-    cw.calls = []
-    cw.putDataFunction = lambda ns, metric, url, value: cw.calls.append((ns, metric, url, value))
+#     def read(self):
+#         return self._body
  
-    monkeypatch.setitem(sys.modules, "constants", constants)
-    monkeypatch.setitem(sys.modules, "CWPutData", cw)
  
-    import boto3
+# def fake_response(status=200, body=b"x" * 6000):
+#     return FakeResponse(status, body)
  
-    fake_db = FakeDynamoDB()
-    monkeypatch.setattr(
-        boto3, "resource", lambda service, *a, **k: fake_db if service == "dynamodb" else object()
-    )
  
-    spec = importlib.util.spec_from_file_location("handler_under_test", HANDLER_PATH)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-@pytest.fixture
-def aws_credentials():
-    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
-    os.environ["AWS_SECURITY_TOKEN"] = "testing"
-    os.environ["AWS_SESSION_TOKEN"] = "testing"
-    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
-
-@pytest.fixture
-def cloudwatch_client(aws_credentials):
-    with mock_aws():
-        yield boto3.client("cloudwatch", region_name="us-east-1")
-
-@responses.activate
-def test_health_check_publishes_metrics(monkeypatch, cloudwatch_client):
-    test_url = "https://www.google.com"
-    monkeypatch.setattr("handler.constants.URL", test_url)
-
-    mock_response = MagicMock()
-    mock_response.status = 200
-    mock_response.read.return_value = b"OK"
-
-    with patch("handler.urllib.request.urlopen", return_value = mock_response):
-        result = handler.lambda_handler ({}, {})
-
-    assert result["statusCode"] == 200
-
-    metrics = cloudwatch_client.list_metrics(Namespace=constants.NAMESPACE)
-    metric_names = {m["MetricName"] for m in metrics["Metrics"]}
-
-    assert constants.METRIC_AVAILABILITY in metric_names
-    assert constants.METRIC_LATENCY in metric_names
-    assert constants.METRIC_RESPONSE_SIZE in metric_names
+# def metrics_sent(cwput):
+#     return {args[1]: args[3] for args in cwput.calls}
 
 
-def test_sns_alarm_is_written_with_all_fields(handler):
-    event = sns_event(
-        alarm="LATENCY Alarm", new="ALARM", old="OK",
-        NewStateReason="Threshold crossed", Region="Asia Pacific (Sydney)", AWSAccountId="123456789012",
-    )
+# def test_put_ops_metrics_publishes_to_ops_namespace(self, crawler):
+#         crawler.put_ops_metrics(12.5, 3)
  
-    handler.log_alarm(event["Records"][0]["Sns"])
+#         listed = boto3.client("cloudwatch").list_metrics(Namespace="WebCrawler/Ops")
+#         assert {m["MetricName"] for m in listed["Metrics"]} == {
+#             "RunDurationSeconds",
+#             "UrlsChecked",
+#         }
  
-    (item,) = handler.table.items
-    assert item["pk"] == "LATENCY Alarm"
-    assert item["new_state"] == "ALARM"
-    assert item["old_state"] == "OK"
-    assert item["reason"] == "Threshold crossed"
-    assert item["region"] == "Asia Pacific (Sydney)"
-    assert item["account_id"] == "123456789012"
+ 
+# class TestHealthCheck:
+#     def test_checks_every_enabled_url_and_reports_ops_metrics(
+#         self, crawler, targets_table, monkeypatch
+#     ):
+#         targets_table.put_item(Item={"id": "1", "url": "https://a.com", "enabled": True})
+#         targets_table.put_item(Item={"id": "2", "url": "https://b.com", "enabled": True})
+#         targets_table.put_item(Item={"id": "3", "url": "https://off.com", "enabled": False})
+ 
+#         checked = []
+#         ops_calls = []
+        
+#         monkeypatch.setattr(crawler, "check_url", checked.append, raising=False)
+#         monkeypatch.setattr(
+#             crawler, "put_ops_metrics", lambda secs, n: ops_calls.append((secs, n))
+#         )
+ 
+#         result = crawler.lambda_handler({}, None)
+ 
+#         assert sorted(checked) == ["https://a.com", "https://b.com"]
+#         assert len(ops_calls) == 1
+#         run_seconds, urls_checked = ops_calls[0]
+#         assert urls_checked == 2
+#         assert run_seconds >= 0
+#         assert result["statusCode"] == 200
+#         assert json.loads(result["body"]) == {"message": "Health Check Complete!"}
