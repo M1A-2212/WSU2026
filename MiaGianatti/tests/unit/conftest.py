@@ -1,95 +1,65 @@
-import importlib.util
-import os
-import sys
-import types
- 
-import boto3
+from unittest.mock import MagicMock, patch
+
 import pytest
-from moto import mock_aws
- 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LAMBDA_DIR = os.path.join(ROOT, "lambda")
 
-CRAWLER_FILE = "handler.py"
-CRUD_FILE = "api_handler.py"
-
+from tests.helpers import load_lambda
 
 @pytest.fixture(autouse=True)
-def aws_env(monkeypatch):
-    for key, value in {
-        "AWS_ACCESS_KEY_ID": "testing",
-        "AWS_SECRET_ACCESS_KEY": "testing",
-        "AWS_SECURITY_TOKEN": "testing",
-        "AWS_SESSION_TOKEN": "testing",
-        "AWS_DEFAULT_REGION": "us-east-1",
-    }.items():
-        monkeypatch.setenv(key, value)
- 
- 
+def _aws_env(monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("TARGETS_TABLE", "targets-test")
+    monkeypatch.setenv("ALARM_NOTIFICATIONS_TABLE", "alarms-test")
+    monkeypatch.setenv("FUNCTION_NAME", "crawler-fn")
+    monkeypatch.setenv("ALIAS_NAME", "live")
+
+class FakeConditionalCheckFailed(Exception):
+    """Stands in for DynamoDB's ConditionalCheckFailedException."""
+
+
 @pytest.fixture
-def aws():
-    with mock_aws():
-        yield
- 
- 
-def load_module(filename, module_name):
-    spec = importlib.util.spec_from_file_location(
-        module_name, os.path.join(LAMBDA_DIR, filename)
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+def crawler():
+    with patch("boto3.client") as client, patch("boto3.resource") as resource:
+        module = load_lambda("crawler")
+    module.cw_client = client.return_value
+    module.targets_table = resource.return_value.Table.return_value
+    module.CWPutData = MagicMock()
     return module
 
-@pytest.fixture
-def fake_deps(monkeypatch):
-    constants = types.ModuleType("constants")
-    constants.URL = "https://example.com"
-    constants.NAMESPACE = "WebCrawler"
-    constants.METRIC_LATENCY = "LATENCY"
-    constants.METRIC_AVAILABILITY = "AVAILABILITY"
-    constants.METRIC_RESPONSE_SIZE = "RESPONSE_SIZE"
- 
-    cwput = types.ModuleType("CWPutData")
-    cwput.calls = []
-    cwput.putDataFunction = lambda *args: cwput.calls.append(args)
- 
-    monkeypatch.setitem(sys.modules, "constants", constants)
-    monkeypatch.setitem(sys.modules, "CWPutData", cwput)
-    return constants, cwput
 
 @pytest.fixture
-def alarm_table(aws):
-    return boto3.resource("dynamodb").create_table(
-        TableName="alarm-notifications",
-        KeySchema=[
-            {"AttributeName": "pk", "KeyType": "HASH"},
-            {"AttributeName": "timestamp", "KeyType": "RANGE"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "pk", "AttributeType": "S"},
-            {"AttributeName": "timestamp", "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-    )
-
-@pytest.fixture
-def targets_table(aws):
-    return boto3.resource("dynamodb").create_table(
-        TableName="targets",
-        KeySchema=[{"AttributeName": "id", "KeyType": "HASH"}],
-        AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
-        BillingMode="PAY_PER_REQUEST",
-    )
-
-@pytest.fixture
-def crawler(aws, fake_deps, alarm_table, targets_table, monkeypatch):
-    monkeypatch.setenv("ALARM_NOTIFICATIONS_TABLE", alarm_table.name)
-    module = load_module(CRAWLER_FILE, "crawler_handler")
-    module.targets_table = targets_table
+def cw_put_data():
+    import importlib.util
+    from tests.helpers import LAMBDA_DIRS
+    with patch("boto3.client") as client:
+        spec = importlib.util.spec_from_file_location("CWPutData_unit", LAMBDA_DIRS["crawler"] / "CWPutData.py")
+        module = importlib.util.module_from_spec(spec)
+        import sys
+        sys.path.insert(0, str(LAMBDA_DIRS["crawler"]))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(str(LAMBDA_DIRS["crawler"]))
+            sys.modules.pop("constants", None)
+    module.client = client.return_value
     return module
- 
- 
+
+
 @pytest.fixture
-def crud(aws, targets_table, monkeypatch):
-    monkeypatch.setenv("TARGETS_TABLE", targets_table.name)
-    return load_module(CRUD_FILE, "crud_handler")
+def alarm_logger():
+    with patch("boto3.resource") as resource:
+        module = load_lambda("alarm_logger")
+    module.table = resource.return_value.Table.return_value
+    return module
+
+
+@pytest.fixture
+def crud():
+    with patch("boto3.resource") as resource:
+        table = resource.return_value.Table.return_value
+        table.meta.client.exceptions.ConditionalCheckFailedException = FakeConditionalCheckFailed
+        module = load_lambda("crud")
+    module.table = table
+    return module

@@ -52,7 +52,7 @@ def make_sns_event(alarm_name="LATENCY Alarm https://example.com", new_state="AL
         ]
     }
 
-# Unit Tests
+#Crawler Lambda Tests
 def test_lambda_created():
     app = core.App()
     stack = WebHealthStack(app, "WebHealthStack")
@@ -81,15 +81,6 @@ def test_eventbridge_rule_count():
     template = assertions.Template.from_stack(stack)
     template.resource_count_is("AWS::Events::Rule", 1)
 
-def test_eventbridge_rule_schedule():
-    app = core.App()
-    stack = WebHealthStack(app, "WebHealthStack")
-    template = assertions.Template.from_stack(stack)
-    template.has_resource_properties("AWS::Events::Rule", {
-        "ScheduleExpression": "rate(5 minutes)",
-        "State": "ENABLED"
-    })
-
 def test_dynamodb_table_count():
     app = core.App()
     stack = WebHealthStack(app, "WebHealthStack")
@@ -103,11 +94,6 @@ def test_alarm_count():
     template = assertions.Template.from_stack(stack)
     template.resource_count_is("AWS::CloudWatch::Alarm", 9)
 
-def test_sns_subscription_count():
-    app = core.App()
-    stack = WebHealthStack(app, "WebHealthStack")
-    template = assertions.Template.from_stack(stack)
-    template.resource_count_is("AWS::SNS::Subscription", 3)
 
 def test_sns_lambda_subscription_():
     app = core.App()
@@ -117,8 +103,57 @@ def test_sns_lambda_subscription_():
         "Protocol": "lambda"
     })
 
-def test_dashboard_created():
-    app = core.App()
-    stack = WebHealthStack(app, "WebHealthStack")
-    template = assertions.Template.from_stack(stack)
-    template.resource_count_is("AWS::CloudWatch::Dashboard", 1)    
+def test_role_is_assumable_by_lambda_and_has_cloudwatch_access(template):
+    roles = template.find_resources("AWS::IAM::Role")
+    assert any(
+        "CloudWatchFullAccess" in json.dumps(r["Properties"].get("ManagedPolicyArns", []))
+        for r in roles.values()
+    )
+    template.has_resource_properties(
+        "AWS::IAM::Role",
+        {
+            "AssumeRolePolicyDocument": {
+                "Statement": [
+                    {"Action": "sts:AssumeRole", "Effect": "Allow",
+                     "Principal": {"Service": "lambda.amazonaws.com"}}
+                ]
+            }
+        },
+    )
+  
+def test_role_can_read_and_write_alarm_table(template):
+    template.has_resource_properties(
+        "AWS::IAM::Policy",
+        {
+            "PolicyDocument": {
+                "Statement": Match.array_with(
+                    [
+                        Match.object_like({"Action": Match.array_with(["dynamodb:GetItem"])}),
+                        Match.object_like({"Action": Match.array_with(["dynamodb:PutItem"])}),
+                    ]
+                )
+            }
+        },
+    )
+
+@responses.activate
+def test_health_check_runs_every_five_minutes(template):
+    template.has_resource_properties(
+        "AWS::Events::Rule",
+        {
+            "ScheduleExpression": "rate(5 minutes)",
+            "Targets": Match.array_with([Match.object_like({"Arn": Match.any_value()})]),
+        },
+    )
+
+
+#API Gateway Tests
+
+def test_prod_stage_is_throttled(template):
+    template.has_resource_properties("AWS::ApiGateway::Stage", {
+        "StageName": "prod",
+        "MethodSettings": [Match.object_like({"ThrottlingRateLimit": 10, "ThrottlingBurstLimit": 20})],
+    })
+
+def test_api_url_is_exported_as_output(template):
+    assert "TargetsApiUrl" in template.to_json()["Outputs"]

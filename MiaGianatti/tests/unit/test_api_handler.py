@@ -1,26 +1,21 @@
 import json
-import time
- 
+
 import pytest
 
-def event(method, target_id=None, body=None, raw_body=None):
-    if raw_body is None and body is not None:
-        raw_body = json.dumps(body)
-    return {
-        "httpMethod": method,
-        "pathParameters": {"id": target_id} if target_id else None,
-        "body": raw_body,
-    }
- 
- 
-def call(crud, *args, **kwargs):
-    r = crud.lambda_handler(event(*args, **kwargs), None)
-    return r["statusCode"], (json.loads(r["body"]) if r["body"] else None), r
- 
- 
-@pytest.fixture
-def seeded(crud):
-    _, item, _ = call(crud, "POST", body={"url": "https://example.com"})
-    return item
+from tests.helpers import api_event
+from tests.unit.conftest import FakeConditionalCheckFailed
 
 
+def body_of(resp):
+    return json.loads(resp["body"]) if resp["body"] else None
+
+def test_routes_get_collection_to_list(crud):
+    crud.table.scan.return_value = {"Items": []}
+    assert crud.lambda_handler(api_event("GET"), None)["statusCode"] == 200
+    crud.table.scan.assert_called_once()
+
+
+def test_routes_get_with_id_to_get_item(crud):
+    crud.table.get_item.return_value = {"Item": {"id": "1"}}
+    crud.lambda_handler(api_event("GET", "1"), None)
+    crud.table.get_item.assert_called_once_with(Key={"id": "1"})

@@ -10,7 +10,7 @@ from pipeLineStack import PipeLineStack
 
 app = cdk.App()
 
-WebHealthStack(app, "WebHealthStack")
+#WebHealthStack(app, "WebHealthStack")
 PipeLineStack(app, "PipeLineStack")
 
     # If you don't specify 'env', this stack will be environment-agnostic.
