@@ -48,7 +48,7 @@ class PipeLineStack(Stack):
             return _pipelines.ShellStep(
                 step_id,
                 input=source,
-                commands=[*SETUP, f"python -m pytest {pytest_args} -v"],
+                commands=[*SETUP, "ls -R tests", f"python -m pytest {pytest_args} -v"],
             )
 
         #Unit Tests
