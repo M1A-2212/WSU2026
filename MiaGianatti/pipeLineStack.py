@@ -57,7 +57,7 @@ class PipeLineStack(Stack):
         pipeline.add_stage(alphaStage,
             post=[test_step(
                 "unitTests", 
-                "tests/unit/test_web_health_stack.py"
+                "tests/unit/test_web_health_stack.py test/unit/test_api_handler.py"
             )]
         )
 
@@ -67,7 +67,7 @@ class PipeLineStack(Stack):
             stage = betaStage,
             post=[test_step(
                 "functionTests",
-                "tests/function/test_handler.py tests/function/test_api_handler.py"
+                "tests/function/test_handler.py tests/function/test_api_handler.py tests/function/test_pipeline.py tests/function/alarm_logger_handler.py"
             )]
         )
 
