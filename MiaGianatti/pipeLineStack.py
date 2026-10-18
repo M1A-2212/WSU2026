@@ -66,8 +66,7 @@ class PipeLineStack(Stack):
             stage = betaStage,
             post=[test_step(
                 "functionTests",
-                "tests/unit/test_crawler_handler.py",
-                "tests/unit/test_api_handler.py"
+                "tests/unit/test_crawler_handler.py tests/test_api_handler.py"
             )]
         )
 
