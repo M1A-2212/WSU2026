@@ -41,6 +41,7 @@ class PipeLineStack(Stack):
         SETUP = [
             "cd MiaGianatti",
             "pip install -r requirements.txt",
+            "pip install -r requirements-dev.txt",
             "pip install pytest",
         ]
 
@@ -66,7 +67,7 @@ class PipeLineStack(Stack):
             stage = betaStage,
             post=[test_step(
                 "functionTests",
-                "tests/unit/test_crawler_handler.py tests/test_api_handler.py"
+                "tests/unit/test_handler.py tests/unit/test_api_handler.py"
             )]
         )
 
@@ -75,7 +76,7 @@ class PipeLineStack(Stack):
         pipeline.add_stage(
             stage = gammaStage,
             post=[test_step(
-                "functionTests",
+                "integrationTests",
                 "tests/unit/test_deployment.py"
             )]
         )
