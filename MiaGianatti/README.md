@@ -135,6 +135,29 @@ to view the dashboard that records the metrics and alarms.
 The alarms that are triggered will send out email notfications, and the alarms will also
 be logged in the DynamoDB service for records.
 
+## API Functions
+Add
+```bash
+curl -X POST https://fb263s0um4.execute-api.us-east-1.amazonaws.com/prod/targets \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-site.com"}'m
+```
+
+Delet
+```bash
+curl -X DELETE https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/targets/<id>
+```
+Read
+```bash
+curl https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/targets
+```
+
+Update
+```bash
+curl -X PUT https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/targets/<id> \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://new-site.com", "enabled": true}'
+```
 
 ## Testing
 ```bash
