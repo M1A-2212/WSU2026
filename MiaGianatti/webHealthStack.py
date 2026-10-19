@@ -113,9 +113,21 @@ class WebHealthStack(Stack):
             runtime = _lambda.Runtime.PYTHON_3_12,
             handler = "handler.lambda_handler",
             code = _lambda.Code.from_asset("lambda/crud"),
-            environment = {"TARGETS_TABLE": targets_table.table_name}
+            environment = {
+                "TARGETS_TABLE": targets_table.table_name,
+                "METRICS_NAMESPACE": constants.NAMESPACE,
+                "METRIC_AVAILABILITY": constants.METRIC_AVAILABILITY,
+                "METRIC_LATENCY": constants.METRIC_LATENCY,
+                "METRIC_RESPONSE_SIZE": constants.METRIC_RESPONSE_SIZE,
+            },
+            timeout = Duration.seconds(25),
         )
         targets_table.grant_read_write_data(api_func)
+
+        api_func.add_to_role_policy(iam.PolicyStatement(
+            actions=["cloudwatch:GetMetricData"],
+            resources=["*"],
+        ))
 
         #Alias that points at the currently live version (rollback repoints this)
         alias = _lambda.Alias(
@@ -397,6 +409,13 @@ class WebHealthStack(Stack):
         target_resource.add_method("GET", integration)
         target_resource.add_method("PUT", integration)
         target_resource.add_method("DELETE", integration)
+
+        #Crawler metrics: all targets, and a single target
+        metrics_resource = api.root.add_resource("metrics")
+        metrics_resource.add_method("GET", integration)
+ 
+        target_metrics_resource = target_resource.add_resource("metrics")
+        target_metrics_resource.add_method("GET", integration)
 
         CfnOutput(self, "TargetsApiUrl", value=api.url)
 

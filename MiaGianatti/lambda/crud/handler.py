@@ -1,12 +1,24 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 import boto3
 
 table = boto3.resource("dynamodb").Table(os.environ["TARGETS_TABLE"])
 ConditionFailed = table.meta.client.exceptions.ConditionalCheckFailedException
+cw = boto3.client("cloudwatch")
+
+METRICS_NAMESPACE = os.environ.get("METRICS_NAMESPACE", "NAMESPACE")
+
+METRICS = {
+    "availability": (os.environ.get("METRIC_AVAILABILITY", "AVAILABILITY"), "Minimum"),
+    "latency": (os.environ.get("METRIC_LATENCY", "LATENCY"), "Average"),
+    "response_size": (os.environ.get("METRIC_RESPONSE_SIZE", "RESPONSE_SIZE"), "Average"),
+}
+PERIOD_SECONDS = 300
+MAX_HOURS = 24
+TARGETS_PER_CALL = 100
 
 
 def resp(status, body=None):
@@ -34,6 +46,13 @@ def lambda_handler(event, context):
     except json.JSONDecodeError:
         return resp(400, {"error": "Body must be valid JSON"})
 
+    resource = event.get("resource", "")
+    qs = event.get("queryStringParameters") or {}
+    if method == "GET" and resource == "/metrics":
+        return all_metrics(qs)
+    if method == "GET" and target_id and resource.endswith("/metrics"):
+        return target_metrics(target_id, qs)
+
     if method == "GET" and not target_id:
         return list_targets()
     if method == "POST" and not target_id:
@@ -47,15 +66,18 @@ def lambda_handler(event, context):
     return resp(405, {"error": "Method not allowed"})
 
 
-def list_targets():
+def scan_targets():
     items, kwargs = [], {}
     while True:
         r = table.scan(**kwargs)
         items += r["Items"]
         if "LastEvaluatedKey" not in r:
-            break
+            return items
         kwargs["ExclusiveStartKey"] = r["LastEvaluatedKey"]
-    return resp(200, items)
+
+
+def list_targets():
+    return resp(200, scan_targets())
 
 
 def create_target(body):
@@ -108,3 +130,94 @@ def delete_target(target_id):
         return resp(204)
     except ConditionFailed:
         return resp(404, {"error": "Not found"})
+
+
+# ---------- Crawler metrics ----------
+
+def parse_hours(qs):
+    try:
+        hours = int(qs.get("hours", 1))
+    except (TypeError, ValueError):
+        hours = 1
+    return min(max(hours, 1), MAX_HOURS)
+
+
+def fetch_metrics(targets, hours):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(hours=hours)
+    out = {t["id"]: {name: [] for name in METRICS} for t in targets}
+
+    for i in range(0, len(targets), TARGETS_PER_CALL):
+        chunk = targets[i:i + TARGETS_PER_CALL]
+        queries, index = [], {}
+        for ti, t in enumerate(chunk):
+            for mi, (name, (metric, stat)) in enumerate(METRICS.items()):
+                qid = f"q{ti}_{mi}"
+                index[qid] = (t["id"], name)
+                queries.append({
+                    "Id": qid,
+                    "MetricStat": {
+                        "Metric": {
+                            "Namespace": METRICS_NAMESPACE,
+                            "MetricName": metric,
+                            "Dimensions": [{"Name": "URL", "Value": t["url"]}],
+                        },
+                        "Period": PERIOD_SECONDS,
+                        "Stat": stat,
+                    },
+                    "ReturnData": True,
+                })
+
+        kwargs = {
+            "MetricDataQueries": queries,
+            "StartTime": start,
+            "EndTime": end,
+            "ScanBy": "TimestampAscending",
+        }
+        while True:
+            r = cw.get_metric_data(**kwargs)
+            for res in r["MetricDataResults"]:
+                tid, name = index[res["Id"]]
+                out[tid][name] += [
+                    {"timestamp": ts.isoformat(), "value": v}
+                    for ts, v in zip(res["Timestamps"], res["Values"])
+                ]
+            if not r.get("NextToken"):
+                break
+            kwargs["NextToken"] = r["NextToken"]
+    return out
+
+
+def summarise(target, series, include_points):
+    latest = {name: (pts[-1]["value"] if pts else None) for name, pts in series.items()}
+    avail = latest["availability"]
+    status = "no_data" if avail is None else ("up" if avail >= 1 else "down")
+    result = {
+        "id": target["id"],
+        "url": target["url"],
+        "enabled": target.get("enabled", True),
+        "status": status,
+        "latest": latest,
+    }
+    if include_points:
+        result["datapoints"] = series
+    return result
+
+
+def target_metrics(target_id, qs):
+    target = table.get_item(Key={"id": target_id}).get("Item")
+    if not target:
+        return resp(404, {"error": "Not found"})
+    hours = parse_hours(qs)
+    series = fetch_metrics([target], hours)[target["id"]]
+    body = summarise(target, series, include_points=True)
+    body["hours"] = hours
+    body["period_seconds"] = PERIOD_SECONDS
+    return resp(200, body)
+
+
+def all_metrics(qs):
+    targets = scan_targets()
+    hours = parse_hours(qs)
+    series = fetch_metrics(targets, hours)
+    return resp(200, [summarise(t, series[t["id"]], include_points=False) for t in targets])
