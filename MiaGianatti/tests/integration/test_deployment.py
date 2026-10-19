@@ -88,7 +88,6 @@ def test_crawler_runs_and_publishes_metrics_for_a_new_target(resources, api_url)
 
 
 def test_same_notification_reaches_logger_and_rollback(system):
-    """The stack fans an ops alarm out to both Lambdas: both must handle the same event."""
     import io, json, sys, types, zipfile
     from tests.helpers import REPO_ROOT
     sys.path.insert(0, str(REPO_ROOT))
